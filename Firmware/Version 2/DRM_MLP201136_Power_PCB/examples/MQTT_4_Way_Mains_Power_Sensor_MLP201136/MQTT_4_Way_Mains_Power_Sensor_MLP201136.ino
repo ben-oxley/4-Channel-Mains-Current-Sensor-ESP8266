@@ -17,7 +17,7 @@
 /* ************************************************************************************************** */
 
 #include <ESP8266WiFi.h>              // needed for EPS8266
-#include <WiFiClient.h>               // WiFi client
+#include <WiFiClientSecure.h>               // WiFi client
 
 // custom settings files
 #include "Wifi_Settings.h"            // custom Wifi settings
@@ -26,12 +26,18 @@
 
 // speaker
 // https://github.com/Mottramlabs/ESP8266-Tone-Generator
-#include <ESP8266_Tones.h>
-ESP8266_Tones Mytone(Speaker);
+//#include <ESP8266_Tones.h>
+//ESP8266_Tones Mytone(Speaker);
+//https://how2electronics.com/connecting-esp8266-to-amazon-aws-iot-core-using-mqtt/
+BearSSL::X509List cert(cacert);
+BearSSL::X509List client_crt(client_cert);
+BearSSL::PrivateKey key(privkey);
 
 // incude WiFi and MQTT functions
-WiFiClient espClient;                 // for ESP8266 boards
+WiFiClientSecure espClient;                 // for ESP8266 boards
+
 #include <PubSubClient.h>             // http://pubsubclient.knolleary.net/api.html
+
 PubSubClient client(espClient);       // ESP pubsub client
 #include "WiFi_Functions.h"           // read wifi data
 #include "MQTT_Functions.h"           // MQTT Functions
@@ -55,10 +61,13 @@ void setup() {
   digitalWrite(Run_LED, LOW);
   digitalWrite(Network_LED, LOW);
 
-  Mytone.Chirp(Speaker); pinMode(Speaker, OUTPUT); digitalWrite(Speaker, LOW);
+  //Mytone.Chirp(Speaker); pinMode(Speaker, OUTPUT); digitalWrite(Speaker, LOW);
 
   // connect to WiFi access point
   Get_Wifi();
+ 
+  espClient.setTrustAnchors(&cert);
+  espClient.setClientRSACert(&client_crt, &key);
 
   // connect to the MQTT broker
   client.setServer(mqtt_server, 1883);

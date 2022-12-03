@@ -4,7 +4,7 @@
 
 
 // MQTT Broker, change as required
-const char* mqtt_server = "192.168.1.10";
+const char* mqtt_server = "192.168.0.5";
 
 // MQTT Topics
 const char* InStatus = "Mains_Power/Status";
