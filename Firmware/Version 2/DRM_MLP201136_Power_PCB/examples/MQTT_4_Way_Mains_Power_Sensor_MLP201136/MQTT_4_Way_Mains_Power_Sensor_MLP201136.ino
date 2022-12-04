@@ -18,6 +18,7 @@
 
 #include <ESP8266WiFi.h>              // needed for EPS8266
 #include <WiFiClientSecure.h>               // WiFi client
+#include <PubSubClient.h>             // http://pubsubclient.knolleary.net/api.html
 
 // custom settings files
 #include "Wifi_Settings.h"            // custom Wifi settings
@@ -28,17 +29,19 @@
 // https://github.com/Mottramlabs/ESP8266-Tone-Generator
 //#include <ESP8266_Tones.h>
 //ESP8266_Tones Mytone(Speaker);
+
+
+// incude WiFi and MQTT functions
+WiFiClientSecure espClient;                 // for ESP8266 boards
+
+
 //https://how2electronics.com/connecting-esp8266-to-amazon-aws-iot-core-using-mqtt/
 BearSSL::X509List cert(cacert);
 BearSSL::X509List client_crt(client_cert);
 BearSSL::PrivateKey key(privkey);
 
-// incude WiFi and MQTT functions
-WiFiClientSecure espClient;                 // for ESP8266 boards
-
-#include <PubSubClient.h>             // http://pubsubclient.knolleary.net/api.html
-
 PubSubClient client(espClient);       // ESP pubsub client
+
 #include "WiFi_Functions.h"           // read wifi data
 #include "MQTT_Functions.h"           // MQTT Functions
 
@@ -70,7 +73,7 @@ void setup() {
   espClient.setClientRSACert(&client_crt, &key);
 
   // connect to the MQTT broker
-  client.setServer(mqtt_server, 1883);
+  client.setServer(mqtt_server, 8883);
   client.setCallback(callback);
 
   // reset heartbeat timer
@@ -115,7 +118,7 @@ void loop() {
     // heartbeat timed out or report message requested
 
     // get a report make and make as an array
-    String Report = Status_Report();
+    String Report = Status_Report_Json();
     char Report_array[(Report.length() + 1)];
     Report.toCharArray(Report_array, (Report.length() + 1));
 

@@ -1,6 +1,8 @@
 /*
     Wifi Setup and operation. Cycles through 4 Wifi access points until a connection is made.
 */
+#include <ArduinoJson.h>
+
 
 // compose a custom report to send by MQTT
 String Status_Report()  {
@@ -19,6 +21,27 @@ String Status_Report()  {
   return Report;
 
 } // End of function
+
+String Status_Report_Json() {
+
+  // WiFi Version
+  long rssi = WiFi.RSSI();
+  
+  StaticJsonDocument<200> doc;
+  doc["mode"] = Mode;
+  doc["value0"] = Value[0];
+  doc["value1"] = Value[1];
+  doc["value2"] = Value[2];
+  doc["value3"] = Value[3];
+  doc["mac"] = My_MAC;
+  doc["ssid"] = WiFi_SSID;
+  doc["rssi"] = rssi;
+  doc["ip"] = My_IP;
+  doc["id"] = Heart_Value;
+  char jsonBuffer[512];
+  serializeJson(doc, jsonBuffer); // print to client
+  return jsonBuffer;
+}
 
 
 // start up Wifi and make a connection

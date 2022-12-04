@@ -4,7 +4,7 @@
 
 
 // MQTT Broker, change as required
-const char* mqtt_server = "192.168.0.5";
+const char* mqtt_server = "a2q9hwffnw3xq5-ats.iot.eu-west-2.amazonaws.com";
 
 // MQTT Topics
 const char* InStatus = "Mains_Power/Status";
