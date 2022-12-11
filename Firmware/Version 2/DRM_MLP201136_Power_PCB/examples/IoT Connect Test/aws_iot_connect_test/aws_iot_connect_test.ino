@@ -5,8 +5,25 @@
 #include <time.h>
 #include "secrets.h"
 
-float h ;
-float t;
+// ********************************************************************************************************
+// ************************ project specific variables ****************************************************
+// ********************************************************************************************************
+
+// I/O and product variables
+#define Speaker 13
+#define Network_LED 14
+
+// Run LED
+#define Run_LED 16
+
+// MLP201136 and A/D items
+double Value[4] = {0, 0, 0, 0};                   // array for results
+// mux connections
+#define Select_A 4
+#define Select_B 5
+#define Cal_value 1500
+
+
 unsigned long lastMillis = 0;
 unsigned long previousMillis = 0;
 const long interval = 5000;
@@ -24,6 +41,11 @@ PubSubClient client(net);
  
 time_t now;
 time_t nowish = 1510592825;
+
+// library for the MLP201136 PCB
+#include <MLP201136.h>
+// make an instance of MLP201136
+MLP201136 My_PCB(Select_A, Select_B, Cal_value);
  
  
 void NTPConnect(void)
@@ -102,13 +124,19 @@ void connectAWS()
  
 void publishMessage()
 {
+  // WiFi Version
+  long rssi = WiFi.RSSI();
+  
   StaticJsonDocument<200> doc;
   doc["time"] = millis();
-  doc["Sensor1"] = h;
-  doc["Sensor2"] = t;
+  doc["value0"] = Value[0];
+  doc["value1"] = Value[1];
+  doc["value2"] = Value[2];
+  doc["value3"] = Value[3];
+  doc["rssi"] = rssi;
+  doc["ip"] = WiFi.localIP().toString();
   char jsonBuffer[512];
   serializeJson(doc, jsonBuffer); // print to client
- 
   client.publish(AWS_IOT_PUBLISH_TOPIC, jsonBuffer);
 }
  
@@ -122,20 +150,16 @@ void setup()
  
 void loop()
 {
-  h = 420;
-  t = 69;
- 
-  if (isnan(h) || isnan(t) )  // Check if any reads failed and exit early (to try again).
-  {
-    Serial.println(F("Failed to read from DHT sensor!"));
-    return;
+  // read A/D values and store in array Value[]
+  // these values are representations of Amps (RMS) measured, and still require some calibration
+  digitalWrite(Run_LED, LOW);
+  for (int i = 0; i <4; i++){
+  // sampling each channel takes around 400mS. 400 samples (20 cycles @50Hz) with a 1mS per A/D sample.
+  // higher sampling rates can have issues when WiFi enabled on the ESP8266
+    Value[i] = My_PCB.power_sample(i);
   }
+  digitalWrite(Run_LED, HIGH);
  
-  Serial.print(F("Humidity: "));
-  Serial.print(h);
-  Serial.print(F("%  Temperature: "));
-  Serial.print(t);
-  Serial.println(F("°C "));
   delay(2000);
  
   now = time(nullptr);
@@ -146,11 +170,16 @@ void loop()
   }
   else
   {
+    digitalWrite(Network_LED, HIGH);
     client.loop();
     if (millis() - lastMillis > 5000)
     {
       lastMillis = millis();
       publishMessage();
     }
+    // only used to make the LED flash visable
+    delay(10);
+
+    digitalWrite(Network_LED, LOW);
   }
 }
