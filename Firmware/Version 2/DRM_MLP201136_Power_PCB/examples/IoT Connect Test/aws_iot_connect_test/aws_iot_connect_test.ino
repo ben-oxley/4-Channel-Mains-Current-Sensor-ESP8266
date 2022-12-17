@@ -46,6 +46,12 @@ time_t nowish = 1510592825;
 #include <MLP201136.h>
 // make an instance of MLP201136
 MLP201136 My_PCB(Select_A, Select_B, Cal_value);
+
+// Custom default values
+String WiFi_SSID = "None";                        // SSID string
+String My_MAC = "";                               // MAC address, tobe read from ESP8266
+char MAC_array[13] = "000000000000";              // MAC definition
+String My_IP = "";                                // IP address
  
  
 void NTPConnect(void)
@@ -93,6 +99,46 @@ void connectAWS()
     Serial.print(".");
     delay(1000);
   }
+
+  // if connected
+  if (WiFi.status() == WL_CONNECTED) {
+
+    // get MAC address, 6 characters in an array
+    byte mac[6];  WiFi.macAddress(mac);
+
+    My_MAC = "";
+
+    // make a string of the MAC with colons "0" padding and upper case results
+    // the MAC address is used as the products MQTT device address
+    for (int i = 0; i <= 5; i++) {
+
+      // add leading zero if missing
+      String M = String(mac[i], HEX); M.toUpperCase();
+      if (M.length() < 2) {
+        M = "0" + M;
+      } // end of padding
+
+      My_MAC = My_MAC + M;
+
+      // add colon of required
+      if (i < 5) {
+        My_MAC = My_MAC;
+      }
+
+    } // end of loop
+
+    // make a string of that IP address array
+    My_IP = WiFi.localIP().toString();
+
+    // make MAC address array used for Client ID
+    My_MAC.toCharArray(MAC_array, (My_MAC.length() + 1));
+
+    // print a connection report
+    Serial.println("");
+    Serial.print("WiFi connected, "); Serial.print("DHCP IP Address = "); Serial.println(WiFi.localIP());
+    // Serial.print(", "); Serial.println(Status_Report());
+
+  } // end of connected
  
   NTPConnect();
  
@@ -134,6 +180,8 @@ void publishMessage()
   doc["value2"] = Value[2];
   doc["value3"] = Value[3];
   doc["rssi"] = rssi;
+  doc["mac"] = My_MAC;
+  doc["ssid"] = WiFi_SSID;
   doc["ip"] = WiFi.localIP().toString();
   char jsonBuffer[512];
   serializeJson(doc, jsonBuffer); // print to client
@@ -143,6 +191,7 @@ void publishMessage()
  
 void setup()
 {
+  
   Serial.begin(115200);
   connectAWS();
 }
@@ -150,6 +199,7 @@ void setup()
  
 void loop()
 {
+  Serial.println("Starting read");
   // read A/D values and store in array Value[]
   // these values are representations of Amps (RMS) measured, and still require some calibration
   digitalWrite(Run_LED, LOW);
@@ -157,25 +207,29 @@ void loop()
   // sampling each channel takes around 400mS. 400 samples (20 cycles @50Hz) with a 1mS per A/D sample.
   // higher sampling rates can have issues when WiFi enabled on the ESP8266
     Value[i] = My_PCB.power_sample(i);
+    ESP.wdtFeed();
   }
   digitalWrite(Run_LED, HIGH);
- 
-  delay(2000);
- 
+  Serial.println("Read Done");
+  
   now = time(nullptr);
  
   if (!client.connected())
   {
+    Serial.println("Connection lost, reconnecting");
     connectAWS();
   }
   else
   {
     digitalWrite(Network_LED, HIGH);
     client.loop();
+    Serial.println("Time since: "); Serial.print(millis() - lastMillis > 5000);
     if (millis() - lastMillis > 5000)
     {
       lastMillis = millis();
+      Serial.println("Publishing");
       publishMessage();
+      Serial.println("Published");
     }
     // only used to make the LED flash visable
     delay(10);
