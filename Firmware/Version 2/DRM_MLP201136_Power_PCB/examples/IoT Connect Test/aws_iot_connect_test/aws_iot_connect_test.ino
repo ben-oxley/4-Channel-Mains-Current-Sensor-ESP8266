@@ -17,6 +17,8 @@
 #define Run_LED 16
 
 // MLP201136 and A/D items
+int8_t ADS_Input = 0;                             // A/D channel select
+int8_t readings = 0;                             // A/D channel select
 double Value[4] = {0, 0, 0, 0};                   // array for results
 // mux connections
 #define Select_A 4
@@ -47,11 +49,13 @@ time_t nowish = 1510592825;
 // make an instance of MLP201136
 MLP201136 My_PCB(Select_A, Select_B, Cal_value);
 
+
 // Custom default values
 String WiFi_SSID = "None";                        // SSID string
 String My_MAC = "";                               // MAC address, tobe read from ESP8266
 char MAC_array[13] = "000000000000";              // MAC definition
 String My_IP = "";                                // IP address
+
  
  
 void NTPConnect(void)
@@ -170,6 +174,13 @@ void connectAWS()
  
 void publishMessage()
 {
+
+  // I/O
+  pinMode(Run_LED, OUTPUT);
+  pinMode(Network_LED, OUTPUT);
+  digitalWrite(Run_LED, LOW);
+  digitalWrite(Network_LED, LOW);
+  
   // WiFi Version
   long rssi = WiFi.RSSI();
   
@@ -199,18 +210,21 @@ void setup()
  
 void loop()
 {
-  Serial.println("Starting read");
   // read A/D values and store in array Value[]
   // these values are representations of Amps (RMS) measured, and still require some calibration
   digitalWrite(Run_LED, LOW);
-  for (int i = 0; i <4; i++){
   // sampling each channel takes around 400mS. 400 samples (20 cycles @50Hz) with a 1mS per A/D sample.
   // higher sampling rates can have issues when WiFi enabled on the ESP8266
-    Value[i] = My_PCB.power_sample(i);
-    ESP.wdtFeed();
-  }
+  double value = My_PCB.power_sample(ADS_Input);
+  Value[ADS_Input] = ((readings*Value[ADS_Input]) + value)/(readings+1);
   digitalWrite(Run_LED, HIGH);
-  Serial.println("Read Done");
+
+  // inc ready for next A/D channel
+  ADS_Input++;
+  if (ADS_Input > 3) {
+    ADS_Input = 0;
+    readings++;
+  } // end if
   
   now = time(nullptr);
  
@@ -221,19 +235,25 @@ void loop()
   }
   else
   {
-    digitalWrite(Network_LED, HIGH);
+    
     client.loop();
-    Serial.println("Time since: "); Serial.print(millis() - lastMillis > 5000);
     if (millis() - lastMillis > 5000)
     {
+      digitalWrite(Network_LED, HIGH);
       lastMillis = millis();
       Serial.println("Publishing");
       publishMessage();
+      for (int i = 0; i < 4; i++){
+        Serial.print(" Value ");Serial.print(i);Serial.print(": ");Serial.print(Value[i]);
+        Value[i]=0; 
+      }
+      Serial.println("");
+      readings = 0;
       Serial.println("Published");
+    } else {
+      digitalWrite(Network_LED, LOW);
     }
-    // only used to make the LED flash visable
-    delay(10);
 
-    digitalWrite(Network_LED, LOW);
+    
   }
 }
