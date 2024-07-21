@@ -155,9 +155,11 @@ void connectAWS()
  
   Serial.println("Connecting to AWS IOT");
  
-  while (!client.connect(THINGNAME))
+  while (!client.connect(THINGNAME))//,"emfmap","hA6H7AK&7J#fme#dmhe2"))
   {
-    Serial.print(".");
+    Serial.print("Failed, rc=");
+    Serial.print(client.state());
+    Serial.println(" Try again in 5 seconds");
     delay(1000);
   }
  
